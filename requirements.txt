@@ -1,2 +1,5 @@
 requests>=2.28
 rich>=13.0
+# 可选：用于"工具内打开浏览器登录并自动读取 Cookie"（夸克/UC/百度/139）。
+# 不装则只能手动粘贴 Cookie / 用账号密码短信登录。系统需已装 Edge 或 Chrome。
+playwright>=1.45

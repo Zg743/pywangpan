@@ -1,45 +1,82 @@
 # pywangpan
 
-网盘分享链接解析与高速下载的 **Python 实现**（参考 Android 版 YunX，仅移植协议与下载引擎，跨平台 PC 可用）。
+网盘分享链接解析与高速下载的 **Python 实现**（参考 Android 版 YunX，移植其协议与下载引擎，可在 Windows / macOS / Linux PC 上运行）。
 
-已实现 **夸克 / 百度 / 迅雷 / UC / 123 / 139** 六条链路：解析 → 转存临时目录（部分平台可免转存直取）→ 取直链 → 分片并发下载 → 清理临时转存。
-分享解析、转存、直链逻辑已全部接入，但多数平台仍需真实账号 Cookie / token 才能联调，建议先本地验证。
+已实现 **夸克 / UC / 百度 / 139 / 123 / 迅雷** 六条链路：识别分享链接 → 解析 →（按平台需要）转存临时目录 → 取直链 → 分片并发下载 → 清理临时转存。提供 **桌面 GUI（tkinter）** 与 **交互式 TUI（rich）** 两种界面，并可打包成单文件 `pywangpan.exe` 双击运行。
 
-> 免责声明：仅供个人学习与技术交流。协议接口会随官方调整而失效，请以实际运行结果为准。不建议用百度网盘，可能导致账号被风控。
+> 免责声明：仅供个人学习与技术交流。网盘协议接口会随官方调整而失效，请以实际运行结果为准。**不建议用百度网盘**，频繁操作可能导致账号被风控。
 
-## 依赖
+---
 
-- Python 3.10+
-- `pip install -r requirements.txt`（`requests`、`rich`）
+## 功能特性
 
-## 使用
+- **6 平台**分享链接解析：夸克、UC（天猫网盘）、百度、139 和彩云、123 云盘、迅雷网盘
+- **增量/分片并发下载**：主池+弹性区、断点续传、Range 忽略回退、合并前完整性校验、实时速度
+- **两种界面**：桌面 GUI 窗口（推荐日常用）+ 终端 TUI
+- **便捷登录态保持**：Cookie / Token 首次输入后保存到本地 `~/.pywangpan/config.json`，后续自动复用
+- **工具内浏览器登录（自动取 Cookie）**：夸克 / UC / 百度 / 139 可直接在工具里打开浏览器登录，登录完点一下自动抓取 Cookie，不用手动复制粘贴
 
-**交互式 TUI（推荐，支持 6 平台）**：
+---
+
+## 安装依赖
+
+要求 **Python 3.10+**。
 
 ```bash
-python -m pywangpan.cli
+pip install -r requirements.txt
 ```
 
-进入主菜单后：
-1. 选择「解析分享链接并下载」，粘贴分享链接（自动识别平台）；
-2. 按提示提供登录态：夸克/UC/百度/139 粘贴 Cookie，123 输入手机号+密码（登录拿 Token），迅雷走完整登录（密码或短信+验证码）；
-3. 首次输入的 Cookie/Token 会保存到 `~/.pywangpan/config.json`，后续可复用；
-4. 目录导航选择文件（`b` 上级、`q` 取消），即可分片并发下载（rich 进度条）。
+- `requests`、`rich`：必需。
+- `playwright`：**可选**，仅用于"工具内打开浏览器登录并自动取 Cookie"。系统需装有任一浏览器：
+  - **Microsoft Edge（Windows 10/11 自带）** 或 **Google Chrome** 之一即可，无需额外下载浏览器。
+  - 若机器上两者都没有，才需要额外安装一次 Playwright 自带的 Chromium：
+    ```bash
+    python -m playwright install chromium      # 仅在无 Edge/Chrome 时才需要
+    ```
 
-**桌面 GUI（tkinter 窗口，推荐有桌面环境时使用，支持 6 平台）**：
+**打包后的 `pywangpan.exe`** 已内置这些依赖（含 Playwright 驱动），装好 exe 的机器只需**装有 Edge 或 Chrome** 即可使用全部功能，无需装 Python。
+
+---
+
+## 使用方式
+
+> **本项目的目录本身就是一个名为 `pywangpan` 的 Python 包**（目录根里有 `__init__.py`、
+> 以及用相对导入的 `cli.py` / `gui.py` 等）。因此**运行时需在其父目录下**执行，即：
+> 假设项目位于 `D:\zy\小工具\pywangpan\`，请先 `cd D:\zy\小工具`，再
+> `python -m pywangpan.cli`。（GUI exe 无需此操作，双击即可。）
+
+### 方式一：桌面 GUI（推荐）
 
 ```bash
 python -m pywangpan.cli --gui
 ```
 
-窗口内：粘贴分享链接 → 点「解析」→ 按提示弹窗收集登录态 → 目录/文件浏选取 →
-后台线程分片并发下载，实时进度条 + 日志。线程数与输出目录可在窗口内设置。
-tkinter 随 Python 自带，无需额外安装。
+或双击打包好的 `pywangpan.exe`（已建桌面快捷方式"pywangpan 网盘下载"）。
 
-**一次性参数（夸克单平台，供脚本）**：
+界面操作：
+
+1. 在「分享链接」输入框粘贴链接（自动识别平台）；
+2. 点「解析」；
+3. 按弹窗提示提供登录态（详见下方"各平台登录方式"）；
+4. 在弹出的文件浏览器里选文件/进目录（双击目录进入、上级返回、选中文件即下载）；
+5. 后台线程分片并**发**下载，底部实时显示进度条、速度与日志；
+6. 顶部可设置**并发线程数**与**输出目录**。
+
+### 方式二：交互式 TUI（无桌面环境 / 终端风格）
 
 ```bash
-# 夸克 Web 登录后，从浏览器复制 Cookie 字符串
+python -m pywangpan.cli
+```
+
+1. 选择「解析分享链接并下载」，粘贴分享链接；
+2. 按提示登录（TUI 下浏览器登录会另开一个浏览器窗口，登录完成后回到终端**回车**确认）；
+3. 目录导航选择文件：输入序号选文件/进目录，`b` 上级、`q` 取消；
+4. 分片并发下载，rich 实时进度条。
+
+### 方式三：一次性脚本（夸克单平台）
+
+```bash
+# 从浏览器复制夸克 Cookie 字符串
 python -m pywangpan.cli \
   --cookie "你的夸克Cookie" \
   --url "https://pan.quark.cn/s/xxxxxx" \
@@ -48,39 +85,91 @@ python -m pywangpan.cli \
   --out ./downloads
 ```
 
-也可把 Cookie 存到文件：`--cookie-file cookie.txt`。
+也可把 Cookie 存进文件：`--cookie-file cookie.txt`。
+
+---
+
+## 各平台登录方式
+
+| 平台 | 登录方式 | 保存的凭据 |
+|------|----------|-----------|
+| 夸克 | ① 工具内浏览器登录（自动取 Cookie）② 手动粘贴 Cookie | `quark` Cookie |
+| UC | ① 工具内浏览器登录 ② 手动粘贴 Cookie | `uc` Cookie |
+| 百度 | ① 工具内浏览器登录 ② 手动粘贴 Cookie（须含 `BDUSS`）| `baidu` Cookie |
+| 139 和彩云 | ① 工具内浏览器登录 ② 手动粘贴 Cookie | `c139` Cookie |
+| 123 云盘 | 手机号 + 密码（登录拿 Token）| `pan123` Token |
+| 迅雷网盘 | 密码 或 短信验证码 + 验证码（完整登录，自动刷新）| `xunlei` Token |
+
+**工具内浏览器登录**（夸克/UC/百度/139）使用步骤：
+
+1. 选择「在工具内打开浏览器登录」；
+2. 工具用系统 Edge / Chrome 打开一个独立的浏览器窗口，并停留到登录页；
+3. 你在该窗口内正常登录（扫码/账号密码均可）；
+4. 登录完成后：
+   - **GUI**：回到工具点击弹窗里的「已登录，读取 Cookie」；
+   - **TUI**：回到终端按回车确认；
+5. 工具自动从浏览器会话读取 Cookie 并保存，之后即可解析下载；下次用已保存的 Cookie，无需再登录。
+
+> 首次取得的 Cookie/Token 会写入 `~/.pywangpan/config.json`（默认仅本机权限）。再解析同一平台时会询问"使用已保存的登录态吗？"，选是即可免登录。
+
+---
+
+## 打包成单文件 exe
+
+```bash
+python -m PyInstaller --clean --noconfirm pywangpan.spec
+```
+
+产物：`dist/pywangpan.exe`（单文件、无控制台窗口，约 58MB，已内置 Python、依赖与 Playwright 驱动）。
+
+- 分发时**无需**安装 Python、也无需安装 Playwright 自带浏览器；
+- 使用目标机器只需装有 **Edge 或 Chrome** 中的任意一个即可用"工具内浏览器登录"；
+- 依赖打包与 `pywangpan.spec` 一起管理；`pywangpan_gui.py` 是打包入口（双击/打包用）。
+
+---
 
 ## 目录结构
 
+> 项目根目录 `D:\zy\小工具\pywangpan\` **就是 `pywangpan` 这个 Python 包**，其父目录
+> `D:\zy\小工具` 才在 `sys.path` 里，因此用 `python -m pywangpan.cli` 调用。
+
 ```
-pywangpan/
+pywangpan/                         ← 即 pywangpan 包本身
+  __init__.py
+  cli.py                命令行入口（--gui 进窗口 / 无参数进 TUI / 带参数走一次性流程）
+  gui.py                tkinter 桌面窗口（后台线程 + 主线程弹窗桥接）
+  tui.py                交互式 TUI（rich 菜单/目录导航/进度条）
+  ui.py                 UI 抽象协议 + rich 实现（TUI 与 GUI 共用 handler）
+  webview.py            Playwright 封装：工具内浏览器登录 + 自动读取 Cookie
+  config.py             本地登录态存储（Cookie/Token 持久化 JSON）
   pan/
-    parser.py          分享链接解析（正则提取 share_id/提取码/平台）
-    cookie.py          __puus/__pus 合并保鲜
-    models.py          数据模型
-    quark.py           夸克 API 封装
-    resolver.py        夸克解析流程编排（转存/取链/清理）
-    baidu.py           百度 API 封装（BDUSS Cookie / verify / transfer / locatedownload）
-    baidu_resolver.py  百度流程编排（appall 直链，取链即删转存）
-    xunlei.py          迅雷 API + 登录（captcha/短信/token 交换）+ 自动刷新
-    xunlei_fingerprint.py  迅雷设备指纹生成与持久化
-    xunlei_resolver.py 迅雷流程编排（Bearer 认证）
-    uc.py              UC API 封装（复用 cookie.py 保鲜）
-    uc_resolver.py     UC 流程编排（官方下载/视频 preview）
-    pan123.py          123 API（CRC32 签名 / download-v2 Base64 / redirect 探测）
-    pan123_resolver.py 123 流程编排（免转存直取 + copy_save 转存回退）
-    c139.py            139 API（AES-CBC 加密 / mcloud-sign / 渠道头）
-    c139_resolver.py   139 流程编排（linkID 直取，无需转存）
+    parser.py           分享链接解析（正则提取 share_id / 提取码 / 平台）
+    cookie.py           __puus/__pus cookie 合并保鲜
+    models.py           数据模型（ShareFile / ShareSession / DownloadLink）
+    quark.py            夸克 API 封装
+    resolver.py         夸克解析流程编排（转存/取链/清理）
+    baidu.py            百度 API 封装（BDUSS / verify / transfer / locatedownload）
+    baidu_resolver.py   百度流程编排（appall 直链，取链即删转存）
+    xunlei.py           迅雷 API + 登录（captcha/短信/token 交换）+ 自动刷新
+    xunlei_fingerprint.py 迅雷设备指纹生成与持久化
+    xunlei_resolver.py  迅雷流程编排（Bearer 认证）
+    uc.py               UC API 封装（复用 cookie.py 保鲜）
+    uc_resolver.py      UC 流程编排（官方下载/视频 preview）
+    pan123.py           123 API（CRC32 签名 / download-v2 Base64 / redirect 探测）
+    pan123_resolver.py  123 流程编排（免转存直取 + copy_save 转存回退）
+    c139.py             139 API（AES-CBC 加密 / mcloud-sign / 渠道头）
+    c139_resolver.py    139 流程编排（linkID 直取，无需转存）
   downloader/
-    chunk_downloader.py   Range 分片下载器（断点续传/校验）
-    downloader.py         任务管理（主池+弹性区/回退单流/合并）
-  tui.py              交互式 TUI（rich 菜单/目录导航/进度条）
-  ui.py               UI 抽象协议 + rich 实现（TUI 与 GUI 共用 handler）
-  gui.py              tkinter 桌面窗口（后台线程 + 主线程弹窗桥接）
-  config.py           本地登录态存储（Cookie/Token 持久化 JSON）
-  cli.py              命令行入口（--gui 进窗口，无参数进 TUI，带参数走一次性流程）
-  tests/              单元测试（本地模拟 Range 服务器校验）
+    chunk_downloader.py  Range 分片下载器（断点续传/校验）
+    downloader.py        任务管理（主池+弹性区/回退单流/合并）
+  tests/                单元测试
+  pywangpan_gui.py      PyInstaller 打包入口（双击/打包用）
+  pywangpan.spec        PyInstaller 打包配置（onefile、含 Playwright 驱动）
+  requirements.txt      依赖清单
+  README.md
 ```
+
+---
 
 ## 下载引擎要点（对齐 Android 版）
 
@@ -88,18 +177,23 @@ pywangpan/
 - **断点续传**：`part_i` / `seg_起_止.part` 保留，按磁盘已有长度续传；分片计划签名（`plan.txt`）变化则清空重下
 - **Range 忽略回退**：服务器返回 200 整文件时回退单流，避免逐片重复下载整文件
 - **完整性校验**：合并前校验 `分段之和 == total`，拒绝损坏文件
-- **速度统计 / 进度回调**：`DownloadProgress` 提供 `downloaded/total/speed/done`
+- **速度统计 / 进度回调**：`DownloadProgress` 提供 `downloaded / total / speed / done`
+
+---
 
 ## 测试
 
 ```bash
-python tests/test_parser.py     # 解析器
-python tests/test_download.py   # 下载引擎（本地 Range 服务器，校验 md5）
-python tests/test_platforms.py  # 百度/迅雷/夸克纯逻辑 + 请求构造（mock，无网络）
-python tests/test_platforms3.py # UC/123/139 纯逻辑 + 加密/签名（mock，无网络）
-python tests/test_tui.py        # TUI 菜单/目录导航/配置存储（mock 输入，无网络）
-python tests/test_gui.py        # GUI TkUI 主线程桥接 + 格式函数（需桌面环境）
+python tests/test_parser.py      # 解析器
+python tests/test_download.py    # 下载引擎（本地 Range 服务器，校验 md5）
+python tests/test_platforms.py   # 百度/迅雷/夸克纯逻辑 + 请求构造（mock，无网络）
+python tests/test_platforms3.py  # UC/123/139 纯逻辑 + 加密/签名（mock，无网络）
+python tests/test_tui.py         # TUI 菜单/目录导航/配置存储 + 浏览器登录流程（mock）
+python tests/test_gui.py         # GUI TkUI 主线程桥接 + 格式函数（需桌面环境）
+python tests/test_webview.py     # webview：登录取 Cookie（真实 Edge/Chromium headless）
 ```
+
+---
 
 ## 扩展其它平台
 
