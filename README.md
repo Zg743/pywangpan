@@ -130,8 +130,7 @@ python -m PyInstaller --clean --noconfirm pywangpan.spec
 
 ## 目录结构
 
-> 项目根目录 `D:\zy\小工具\pywangpan\` **就是 `pywangpan` 这个 Python 包**，其父目录
-> `D:\zy\小工具` 才在 `sys.path` 里，因此用 `python -m pywangpan.cli` 调用。
+
 
 ```
 pywangpan/                         ← 即 pywangpan 包本身
