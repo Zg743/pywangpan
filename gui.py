@@ -52,6 +52,12 @@ class TkUI:
                 rid, fn = self._req_q.get_nowait()
             except queue.Empty:
                 break
+            if rid is None:
+                try:
+                    fn()
+                except Exception:  # noqa: BLE001
+                    pass
+                continue
             slot = self._pending.get(rid)
             if slot is None:
                 continue
@@ -77,6 +83,10 @@ class TkUI:
         if "e" in reply:
             raise reply["e"]
         return reply.get("v")
+
+    def _call_async(self, fn):
+        """把调用投递到主线程执行，不等待（fire-and-forget）。仅后台线程调用。"""
+        self._req_q.put((None, fn))
 
     def info(self, message: str) -> None:
         self._log(str(message))
@@ -118,6 +128,44 @@ class TkUI:
         def _do():
             return _FileBrowser(self.root, list_fn, root_fid, title).run()
         return self._sync(_do)
+
+    def wait_browser_login(self, url, title=""):
+        """阻塞后台线程，弹出\"完成登录\"对话框；用户点击后返回 ok / cancel。"""
+        ev = threading.Event()
+        holder = {"r": "cancel"}
+
+        def show():
+            win = tk.Toplevel(self.root)
+            win.title("浏览器登录 — " + (title or "网盘"))
+            win.geometry("420x200")
+            win.transient(self.root)
+            win.resizable(False, False)
+            win.protocol("WM_DELETE_WINDOW", lambda: _finish("cancel"))
+
+            def _finish(r):
+                holder["r"] = r
+                win.destroy()
+                ev.set()
+
+            ttk.Label(
+                win,
+                text="已在独立浏览器窗口打开登录页。\n\n"
+                     "请在浏览器里完成登录后，回到这里点击“完成登录”。\n"
+                     "工具将自动读取 Cookie。",
+                justify="left",
+                wraplength=380,
+                padding=14,
+            ).pack(anchor="w")
+            url_lbl = ttk.Label(win, text=url, foreground="#1a6fd4", padding=(14, 0))
+            url_lbl.pack(anchor="w")
+            btns = ttk.Frame(win, padding=(14, 12))
+            btns.pack(fill="x")
+            ttk.Button(btns, text="已登录，读取 Cookie", command=lambda: _finish("ok")).pack(side="left")
+            ttk.Button(btns, text="取消", command=lambda: _finish("cancel")).pack(side="right")
+
+        self._call_async(show)
+        ev.wait()
+        return holder["r"]
 
 
 class _FileBrowser:

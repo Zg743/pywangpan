@@ -141,6 +141,72 @@ def test_handler_registry_all_platforms():
         assert isinstance(h.root_fid, str)
 
 
+# ---------- Cookie 类平台：工具内浏览器登录 ----------
+
+def test_quark_browser_login_saves_cookie():
+    with tempfile.TemporaryDirectory() as tmp:
+        app = TuiApp(console=_console(), dl=_FakeDl())
+        app.config = ConfigStore(Path(tmp) / "cfg.json")
+        app.config.load()
+        handler = handler_for(SharePlatform.QUARK, app.ui, app.config)
+        # 无已保存 cookie → 选择方式选 1(浏览器登录)
+        with patch("pywangpan.tui.webview.browser_login", return_value="__puus=x; a=1") as bl:
+            with patch("pywangpan.ui.Prompt.ask", side_effect=["1"]):
+                cookie = handler.collect_auth()
+        assert cookie == "__puus=x; a=1"
+        assert app.config.get_cookie("quark") == "__puus=x; a=1"
+        assert bl.call_count == 1
+
+
+def test_cookie_platforms_browser_login_all():
+    cases = [
+        (SharePlatform.QUARK, "quark"),
+        (SharePlatform.UC, "uc"),
+        (SharePlatform.BAIDU, "baidu"),
+        (SharePlatform.C139, "c139"),
+    ]
+    with tempfile.TemporaryDirectory() as tmp:
+        app = TuiApp(console=_console(), dl=_FakeDl())
+        app.config = ConfigStore(Path(tmp) / "cfg.json")
+        app.config.load()
+        for platform, cookie in cases:
+            handler = handler_for(platform, app.ui, app.config)
+            assert handler.login_url and handler.required_cookies
+            with patch("pywangpan.tui.webview.browser_login", return_value="k=v"):
+                with patch("pywangpan.ui.Prompt.ask", side_effect=["1"]):
+                    got = handler.collect_auth()
+            assert got == "k=v"
+            assert app.config.get_cookie(cookie) == "k=v"
+
+
+def test_cookie_platform_cancel_raises():
+    with tempfile.TemporaryDirectory() as tmp:
+        app = TuiApp(console=_console(), dl=_FakeDl())
+        app.config = ConfigStore(Path(tmp) / "cfg.json")
+        app.config.load()
+        handler = handler_for(SharePlatform.QUARK, app.ui, app.config)
+        with patch("pywangpan.ui.Prompt.ask", side_effect=["3"]):  # 取消
+            try:
+                handler.collect_auth()
+                assert False, "应抛出 EmptyFilesError"
+            except EmptyFilesError:
+                pass
+
+
+def test_cookie_platform_browser_fail_falls_back_to_paste():
+    with tempfile.TemporaryDirectory() as tmp:
+        app = TuiApp(console=_console(), dl=_FakeDl())
+        app.config = ConfigStore(Path(tmp) / "cfg.json")
+        app.config.load()
+        handler = handler_for(SharePlatform.QUARK, app.ui, app.config)
+        # 浏览器登录返回空（未取到登录态）→ 回退手动粘贴；ask 依次: 1(浏览器), 粘贴内容
+        with patch("pywangpan.tui.webview.browser_login", return_value=""):
+            with patch("pywangpan.ui.Prompt.ask", side_effect=["1", "__pus=pasted"]):
+                got = handler.collect_auth()
+        assert got == "__pus=pasted"
+        assert app.config.get_cookie("quark") == "__pus=pasted"
+
+
 if __name__ == "__main__":
     test_config_roundtrip()
     test_choose_valid_and_invalid()
@@ -149,4 +215,7 @@ if __name__ == "__main__":
     test_browse_back_navigation()
     test_browse_quit_raises()
     test_handler_registry_all_platforms()
+    test_quark_browser_login_saves_cookie()
+    test_cookie_platform_cancel_raises()
+    test_cookie_platform_browser_fail_falls_back_to_paste()
     print("All TUI tests passed")

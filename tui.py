@@ -34,6 +34,7 @@ from .config import ConfigStore
 from .downloader.chunk_downloader import ChunkDownloader
 from .downloader.downloader import DownloadManager, DownloadProgress
 from .ui import RichUI
+from . import webview
 from .pan import (
     baidu,
     c139,
@@ -71,6 +72,39 @@ def _fmt_size(n: int) -> str:
 
 class EmptyFilesError(Exception):
     pass
+
+
+DEFAULT_COOKIE_CHOICES = [
+    ("browser", "在工具内打开浏览器登录并自动取 Cookie"),
+    ("paste", "手动粘贴 Cookie"),
+    ("cancel", "取消"),
+]
+
+
+def _browser_cookie(
+    ui,
+    handler,
+    platform_title: str,
+    cookie_key: str,
+) -> str:
+    """在工具内打开浏览器登录，自动读取并保存 Cookie；取消/失败返回空串。"""
+    try:
+        ui.info(f"[cyan]正在打开浏览器窗口用于 {platform_title} 登录 ...[/cyan]")
+        cookie = webview.browser_login(
+            handler.login_url,
+            handler.required_cookies,
+            lambda: ui.wait_browser_login(handler.login_url, platform_title),
+            user_agent=handler.login_ua,
+        )
+    except Exception as e:  # noqa: BLE001
+        ui.info(f"[red]浏览器登录失败: {e}[/red]")
+        return ""
+    if cookie:
+        handler.config.set_cookie(cookie_key, cookie)
+        ui.info(f"[dim]已自动获取 {platform_title} Cookie（{len(cookie)} 字符）并保存[/dim]")
+    else:
+        ui.info(f"[red]未获取到有效的 {platform_title} 登录态，请重试或改用手动粘贴[/red]")
+    return cookie
 
 
 @dataclass
@@ -118,6 +152,9 @@ class QuarkHandler(PlatformHandler):
     platform = SharePlatform.QUARK
     name = "夸克网盘"
     root_fid = "0"
+    login_url = "https://pan.quark.cn/"
+    login_ua = webview.DEFAULT_UA
+    required_cookies = ("__puus", "__pus")
 
     def collect_auth(self) -> str:
         saved = self.config.get_cookie("quark")
@@ -125,6 +162,14 @@ class QuarkHandler(PlatformHandler):
             self.ui.info(f"[dim]已读取本机保存的夸克 Cookie（{len(saved)} 字符）[/dim]")
             if self.ui.confirm("使用已保存的 Cookie 吗？", default=True):
                 return saved
+        method = self.ui.choose("夸克登录方式", DEFAULT_COOKIE_CHOICES)
+        if method == "cancel":
+            raise EmptyFilesError("已取消夸克登录")
+        if method == "browser":
+            cookie = _browser_cookie(self.ui, self, "夸克网盘", "quark")
+            if cookie:
+                return cookie
+            method = "paste"
         cookie = self.ui.ask("粘贴夸克 Cookie（须含 __pus / __puus）")
         cookie = cookie.strip()
         if cookie:
@@ -174,6 +219,9 @@ class UcHandler(PlatformHandler):
     platform = SharePlatform.UC
     name = "UC 网盘"
     root_fid = "0"
+    login_url = "https://drive.uc.cn/"
+    login_ua = webview.DEFAULT_UA
+    required_cookies = ("__puus", "__pus")
 
     def collect_auth(self) -> str:
         saved = self.config.get_cookie("uc")
@@ -181,6 +229,14 @@ class UcHandler(PlatformHandler):
             self.ui.info(f"[dim]已读取本机保存的 UC Cookie（{len(saved)} 字符）[/dim]")
             if self.ui.confirm("使用已保存的 Cookie 吗？", default=True):
                 return saved
+        method = self.ui.choose("UC 登录方式", DEFAULT_COOKIE_CHOICES)
+        if method == "cancel":
+            raise EmptyFilesError("已取消 UC 登录")
+        if method == "browser":
+            cookie = _browser_cookie(self.ui, self, "UC 网盘", "uc")
+            if cookie:
+                return cookie
+            method = "paste"
         cookie = self.ui.ask("粘贴 UC Cookie（须含 __pus / __puus）")
         cookie = cookie.strip()
         if cookie:
@@ -223,6 +279,9 @@ class BaiduHandler(PlatformHandler):
     platform = SharePlatform.BAIDU
     name = "百度网盘"
     root_fid = "/"
+    login_url = "https://pan.baidu.com/"
+    login_ua = webview.DEFAULT_UA
+    required_cookies = ("BDUSS", "BDUSS_BFESS")
 
     def collect_auth(self) -> str:
         saved = self.config.get_cookie("baidu")
@@ -230,6 +289,14 @@ class BaiduHandler(PlatformHandler):
             self.ui.info(f"[dim]已读取本机保存的百度 Cookie（{len(saved)} 字符）[/dim]")
             if self.ui.confirm("使用已保存的 Cookie 吗？", default=True):
                 return saved
+        method = self.ui.choose("百度登录方式", DEFAULT_COOKIE_CHOICES)
+        if method == "cancel":
+            raise EmptyFilesError("已取消百度登录")
+        if method == "browser":
+            cookie = _browser_cookie(self.ui, self, "百度网盘", "baidu")
+            if cookie:
+                return cookie
+            method = "paste"
         cookie = self.ui.ask("粘贴百度 Cookie（须含 BDUSS）")
         cookie = cookie.strip()
         if cookie:
@@ -261,6 +328,9 @@ class C139Handler(PlatformHandler):
     platform = SharePlatform.C139
     name = "139 和彩云"
     root_fid = "0"
+    login_url = "https://yun.139.com/"
+    login_ua = webview.DEFAULT_UA
+    required_cookies = ("authorization", "Os_SSo_Sid")
 
     def collect_auth(self) -> str:
         saved = self.config.get_cookie("c139")
@@ -268,6 +338,14 @@ class C139Handler(PlatformHandler):
             self.ui.info(f"[dim]已读取本机保存的 139 Cookie（{len(saved)} 字符）[/dim]")
             if self.ui.confirm("使用已保存的 Cookie 吗？", default=True):
                 return saved
+        method = self.ui.choose("139 登录方式", DEFAULT_COOKIE_CHOICES)
+        if method == "cancel":
+            raise EmptyFilesError("已取消 139 登录")
+        if method == "browser":
+            cookie = _browser_cookie(self.ui, self, "139 和彩云", "c139")
+            if cookie:
+                return cookie
+            method = "paste"
         cookie = self.ui.ask("粘贴 139 Cookie（须含 authorization 或 Os_SSo_Sid+RMKEY）")
         cookie = cookie.strip()
         if cookie:

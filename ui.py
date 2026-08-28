@@ -44,6 +44,13 @@ class UI(Protocol):
         title: str = "",
     ) -> ShareFile: ...
 
+    def wait_browser_login(self, url: str, title: str) -> str:
+        """在工具内打开浏览器登录后，阻塞调用线程直到用户完成登录并确认。
+
+        返回 "ok" 表示用户确认已登录；返回 "cancel" 表示放弃。仅当登录页需要在
+        工具内打开浏览器时才被调用（实现通常各自处理跨线程弹窗/输入等待）。
+        """
+
 
 class RichUI:
     """rich 终端的 UI 实现。"""
@@ -99,6 +106,7 @@ class RichUI:
         from .tui import EmptyFilesError
 
         dir_ = root_fid
+
         stack: list[str] = []
         while True:
             try:
@@ -155,3 +163,16 @@ class RichUI:
                 except ValueError:
                     pass
                 self.console.print("[red]无效序号，请重试[/red]")
+
+    def wait_browser_login(self, url: str, title: str) -> str:
+        self.console.print(
+            f"[cyan]已在浏览器窗口打开 {title or '登录页'}：{url}[/cyan]\n"
+            "[yellow]请在新弹出的浏览器窗口内完成登录；登录完成后回到此处[bold]按回车[/bold]确认，"
+            "或输入 q 取消。[/yellow]"
+        )
+        from rich.prompt import Prompt
+
+        raw = Prompt.ask("确认已登录？(回车=完成  q=取消)", default="yes")
+        if raw.strip().lower() in ("q", "quit", "cancel", "no"):
+            return "cancel"
+        return "ok"
