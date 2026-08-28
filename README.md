@@ -40,10 +40,9 @@ pip install -r requirements.txt
 
 ## 使用方式
 
-> **本项目的目录本身就是一个名为 `pywangpan` 的 Python 包**（目录根里有 `__init__.py`、
-> 以及用相对导入的 `cli.py` / `gui.py` 等）。因此**运行时需在其父目录下**执行，即：
-> 假设项目位于 `D:\zy\小工具\pywangpan\`，请先 `cd D:\zy\小工具`，再
-> `python -m pywangpan.cli`。（GUI exe 无需此操作，双击即可。）
+> 项目根目录 `D:\zy\小工具\pywangpan\` 里包含一个同名 `pywangpan` 包和 `pywangpan_gui.py`
+> 入口。请在**项目根目录**下运行（PyCharm 也直接打开这个目录即可，`pywangpan` 已被设为
+> 源码根）：`cd D:\zy\小工具\pywangpan`。
 
 ### 方式一：桌面 GUI（推荐）
 
@@ -130,38 +129,37 @@ python -m PyInstaller --clean --noconfirm pywangpan.spec
 
 ## 目录结构
 
-
-
 ```
-pywangpan/                         ← 即 pywangpan 包本身
-  __init__.py
-  cli.py                命令行入口（--gui 进窗口 / 无参数进 TUI / 带参数走一次性流程）
-  gui.py                tkinter 桌面窗口（后台线程 + 主线程弹窗桥接）
-  tui.py                交互式 TUI（rich 菜单/目录导航/进度条）
-  ui.py                 UI 抽象协议 + rich 实现（TUI 与 GUI 共用 handler）
-  webview.py            Playwright 封装：工具内浏览器登录 + 自动读取 Cookie
-  config.py             本地登录态存储（Cookie/Token 持久化 JSON）
-  pan/
-    parser.py           分享链接解析（正则提取 share_id / 提取码 / 平台）
-    cookie.py           __puus/__pus cookie 合并保鲜
-    models.py           数据模型（ShareFile / ShareSession / DownloadLink）
-    quark.py            夸克 API 封装
-    resolver.py         夸克解析流程编排（转存/取链/清理）
-    baidu.py            百度 API 封装（BDUSS / verify / transfer / locatedownload）
-    baidu_resolver.py   百度流程编排（appall 直链，取链即删转存）
-    xunlei.py           迅雷 API + 登录（captcha/短信/token 交换）+ 自动刷新
-    xunlei_fingerprint.py 迅雷设备指纹生成与持久化
-    xunlei_resolver.py  迅雷流程编排（Bearer 认证）
-    uc.py               UC API 封装（复用 cookie.py 保鲜）
-    uc_resolver.py      UC 流程编排（官方下载/视频 preview）
-    pan123.py           123 API（CRC32 签名 / download-v2 Base64 / redirect 探测）
-    pan123_resolver.py  123 流程编排（免转存直取 + copy_save 转存回退）
-    c139.py             139 API（AES-CBC 加密 / mcloud-sign / 渠道头）
-    c139_resolver.py    139 流程编排（linkID 直取，无需转存）
-  downloader/
-    chunk_downloader.py  Range 分片下载器（断点续传/校验）
-    downloader.py        任务管理（主池+弹性区/回退单流/合并）
-  tests/                单元测试
+pywangpan/                 ← 项目根目录（PyCharm 打开此目录，pywangpan 设为源码根）
+  pywangpan/                       ← 主包 pywangpan
+    __init__.py
+    cli.py                命令行入口（--gui 进窗口 / 无参数进 TUI / 带参数走一次性流程）
+    gui.py                tkinter 桌面窗口（后台线程 + 主线程弹窗桥接）
+    tui.py                交互式 TUI（rich 菜单/目录导航/进度条）
+    ui.py                 UI 抽象协议 + rich 实现（TUI 与 GUI 共用 handler）
+    webview.py            Playwright 封装：工具内浏览器登录 + 自动读取 Cookie
+    config.py             本地登录态存储（Cookie/Token 持久化 JSON）
+    pan/
+      parser.py           分享链接解析（正则提取 share_id / 提取码 / 平台）
+      cookie.py           __puus/__pus cookie 合并保鲜
+      models.py           数据模型（ShareFile / ShareSession / DownloadLink）
+      quark.py            夸克 API 封装
+      resolver.py         夸克解析流程编排（转存/取链/清理）
+      baidu.py            百度 API 封装（BDUSS / verify / transfer / locatedownload）
+      baidu_resolver.py   百度流程编排（appall 直链，取链即删转存）
+      xunlei.py           迅雷 API + 登录（captcha/短信/token 交换）+ 自动刷新
+      xunlei_fingerprint.py 迅雷设备指纹生成与持久化
+      xunlei_resolver.py  迅雷流程编排（Bearer 认证）
+      uc.py               UC API 封装（复用 cookie.py 保鲜）
+      uc_resolver.py      UC 流程编排（官方下载/视频 preview）
+      pan123.py           123 API（CRC32 签名 / download-v2 Base64 / redirect 探测）
+      pan123_resolver.py  123 流程编排（免转存直取 + copy_save 转存回退）
+      c139.py             139 API（AES-CBC 加密 / mcloud-sign / 渠道头）
+      c139_resolver.py    139 流程编排（linkID 直取，无需转存）
+    downloader/
+      chunk_downloader.py  Range 分片下载器（断点续传/校验）
+      downloader.py        任务管理（主池+弹性区/回退单流/合并）
+  tests/                  单元测试
   pywangpan_gui.py      PyInstaller 打包入口（双击/打包用）
   pywangpan.spec        PyInstaller 打包配置（onefile、含 Playwright 驱动）
   requirements.txt      依赖清单

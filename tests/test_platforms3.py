@@ -8,7 +8,7 @@
 import os
 import sys
 
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from pywangpan.pan.uc_resolver import UCResolver  # noqa: E402
 from pywangpan.pan.pan123 import Pan123Api, Pan123Constants  # noqa: E402

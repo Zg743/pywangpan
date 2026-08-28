@@ -1,16 +1,15 @@
 """pywangpan GUI 启动入口（供 PyInstaller 打包 / 双击运行）。
 
-本文件位于 `pywangpan` 包根目录内；把其父目录加入 sys.path，
-使 `from pywangpan.gui ...` 能按包路径解析。
+本文件位于项目根目录，`pywangpan` 包是其子目录；把本文件所在目录加入
+sys.path，使 `from pywangpan.gui ...` 能按包路径解析（打包后为解包目录，
+同样成立）。
 """
 import os
 import sys
 
 _here = os.path.dirname(os.path.abspath(__file__))
-_parent = os.path.dirname(_here)
-for p in (_parent, _here):
-    if p not in sys.path:
-        sys.path.insert(0, p)
+if _here not in sys.path:
+    sys.path.insert(0, _here)
 
 from pywangpan.gui import launch_gui  # noqa: E402
 

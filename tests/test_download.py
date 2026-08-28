@@ -7,7 +7,7 @@ import sys
 import tempfile
 import threading
 
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from pywangpan.downloader.chunk_downloader import ChunkDownloader
 from pywangpan.downloader.downloader import DownloadManager  # noqa: E402

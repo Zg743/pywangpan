@@ -9,6 +9,10 @@
 from PyInstaller.utils.hooks import collect_data_files, collect_submodules
 from pathlib import Path
 
+# 项目根目录（含 pywangpan 包与 pywangpan_gui.py 入口）。spec 执行时无 __file__，
+# 用 PyInstaller 注入的 SPECPATH（spec 文件所在目录）。
+_project_root = Path(SPECPATH)
+
 datas = collect_data_files("playwright", includes=["driver/**"])
 
 # collect_data_files 把 .exe 视为二进制而漏掉 node.exe；driver 是 Playwright 驱动的
@@ -21,7 +25,7 @@ hiddenimports = ["playwright", "playwright.sync_api", "playwright.async_api"] + 
 
 a = Analysis(
     ["pywangpan_gui.py"],
-    pathex=[],
+    pathex=[str(_project_root)],
     binaries=binaries,
     datas=datas,
     hiddenimports=hiddenimports,
