@@ -67,8 +67,16 @@ class QuarkApi:
             if self.cookie_sink:
                 self.cookie_sink(merged)
 
+    @staticmethod
+    def _set_cookies_from_response(response: requests.Response) -> list:
+        try:
+            return response.raw.getheaders("Set-Cookie") or []
+        except Exception:
+            value = response.headers.get("Set-Cookie")
+            return [value] if value else []
+
     def _merge_from_response(self, response: requests.Response) -> None:
-        set_cookies = response.headers.get_list("Set-Cookie") or []
+        set_cookies = self._set_cookies_from_response(response)
         if not set_cookies:
             return
         merged = cookie_util.merge_from_set_cookies(self._cookie, set_cookies)
@@ -295,7 +303,7 @@ class QuarkApi:
         headers["Cookie"] = cookie_util.without_puus(self._cookie)
         headers["Referer"] = QuarkConstants.DOWNLOAD_REFERER
         resp = self._session.get(QuarkConstants.CONFIG_URL, headers=headers, timeout=60)
-        merged = cookie_util.merge_from_set_cookies(self._cookie, resp.headers.get_list("Set-Cookie") or [])
+        merged = cookie_util.merge_from_set_cookies(self._cookie, self._set_cookies_from_response(resp))
         self._update_cookie(merged)
         return merged if merged != self._cookie else None
 
